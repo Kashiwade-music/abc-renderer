@@ -1,0 +1,79 @@
+<html>
+  <head>
+    <title>Home</title>
+  </head>
+  <body>
+    <script src="https://cdn.jsdelivr.net/npm/abcjs@6.2.3/dist/abcjs-basic-min.min.js"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/abcjs@6.2.3/abcjs-audio.min.css"
+      rel="stylesheet"
+    />
+    <div class="score">
+        X: 1
+        M: 4/4
+        L: 1/8
+        K: Emin
+        |:D2|"Em"EBBA B2 EB|\
+            ~B2 AB dBAG|\
+            "D"FDAD BDAD|\
+            FDAD dAFD|
+        "Em"EBBA B2 EB|\
+            B2 AB defg|\
+            "D"afe^c dBAF|\
+            "Em"DEFD E2:|
+        |:gf|"Em"eB B2 efge|\
+            eB B2 gedB|\
+            "D"A2 FA DAFA|\
+            A2 FA defg|
+        "Em"eB B2 eBgB|\
+            eB B2 defg|\
+            "D"afe^c dBAF|\
+            "Em"DEFD E2:|
+    </div>
+    <div class="audio"></div>
+
+    <div class="score">
+        M:4/4
+        L:1/4
+        K:C
+        cBAG | FEDC ||
+        </div>
+    <div class="audio"></div>
+
+    <script>
+  var isRendered = false;
+  window.addEventListener("load", (event) => {
+    console.log(ABCJS);
+    console.log("ページが完全に読み込まれました");
+    render();
+  });
+  function render() {
+    if (!isRendered) {
+    console.log("レンダリング中");
+      // audioクラスのついているdivタグに、idを0から順に振っていく
+      var audioObj = document.getElementsByClassName("audio");
+
+      // 既にidが存在していたらbreakする
+      for (var i in audioObj) {
+        if (audioObj[i].id) {
+          break;
+        }
+      }
+
+      for (var i in audioObj) {
+          audioObj[i].id = "audio"+i;
+      }
+      // スコアのレンダリング
+      var scoreObj = document.getElementsByClassName("score");
+      for (var i in scoreObj) {
+        var visualObj = ABCJS.renderAbc(scoreObj[i], scoreObj[i].innerHTML);
+        var synthControl = new ABCJS.synth.SynthController();
+	      synthControl.load("#audio"+i, null, {displayRestart: true, displayPlay: true, displayProgress: true});
+	      synthControl.setTune(visualObj[0], false);
+      }
+      isRendered = true;
+    }
+  }
+    </script>
+  </body>
+</html>
