@@ -9,51 +9,34 @@
       rel="stylesheet"
     />
     <div class="score">
-      X: 1
-      M: 4/4
-      L: 1/8
-      K: Emin
-      |:D2|"Em"EBBA B2 EB|\
-          ~B2 AB dBAG|\
-          "D"FDAD BDAD|\
-          FDAD dAFD|
-      "Em"EBBA B2 EB|\
-          B2 AB defg|\
-          "D"afe^c dBAF|\
-          "Em"DEFD E2:|
-      |:gf|"Em"eB B2 efge|\
-          eB B2 gedB|\
-          "D"A2 FA DAFA|\
-          A2 FA defg|
-      "Em"eB B2 eBgB|\
-          eB B2 defg|\
-          "D"afe^c dBAF|\
-          "Em"DEFD E2:|
-  </div>
-  <div class="audio"></div>
+      X: 1 M: 4/4 L: 1/8 K: Emin |:D2|"Em"EBBA B2 EB|\ ~B2 AB dBAG|\ "D"FDAD
+      BDAD|\ FDAD dAFD| "Em"EBBA B2 EB|\ B2 AB defg|\ "D"afe^c dBAF|\ "Em"DEFD
+      E2:| |:gf|"Em"eB B2 efge|\ eB B2 gedB|\ "D"A2 FA DAFA|\ A2 FA defg| "Em"eB
+      B2 eBgB|\ eB B2 defg|\ "D"afe^c dBAF|\ "Em"DEFD E2:|
+    </div>
 
-  <div class="score">
-      M:4/4
-      L:1/4
-      K:C
-      cBAG | FEDC ||
-      </div>
-  <div class="audio"></div>
-  <style>
+    <div class="score">M:4/4 L:1/4 K:C cBAG | FEDC ||</div>
+    <style>
       .color {
         stroke: red;
         fill: red;
+      }
+      .abcjs-cursor {
+        stroke: blue;
+        stroke-width: 2;
       }
     </style>
     <script>
       var timingCallbacksStateArray = [];
 
-      class TimingCallbacksState {
+      class TimingCallbackState {
         constructor(id, visualObj) {
           this.id = id;
           this.visualObj = visualObj;
           this.lastEls = [];
           this.isRunning = false;
+          this.stoppedByPause = false;
+          this.stoppedByEnd = false;
           this.cursor = this.createCursor();
           this.timingCallback = new ABCJS.TimingCallbacks(this.visualObj[0], {
             beatCallback: this.beatCallback.bind(this),
@@ -76,19 +59,15 @@
           return cursor;
         }
 
-        beatCallback(
-          currentBeat,
-          totalBeats,
-          lastMoment,
-          position,
-          debugInfo
-        ) {
+        beatCallback(currentBeat, totalBeats, lastMoment, position, debugInfo) {
           var x1, x2, y1, y2;
           if (currentBeat === totalBeats) {
             x1 = 0;
             x2 = 0;
             y1 = 0;
             y2 = 0;
+            this.stoppedByEnd = true;
+            this.isRunning = false;
           } else {
             x1 = position.left - 2;
             x2 = position.left - 2;
@@ -96,7 +75,6 @@
             y2 = position.top + position.height;
           }
 
-          console.log(this);
           this.cursor.setAttribute("x1", x1);
           this.cursor.setAttribute("x2", x2);
           this.cursor.setAttribute("y1", y1);
@@ -104,59 +82,74 @@
         }
 
         eventCallback(ev) {
-          this.colorElements(ev.elements);
-        }1
+          if (!ev) {
+            console.log("Event is null. Stopping.");
+            this.isRunning = false;
+            this.stoppedByPause = true;
+            this.colorElements([]);
+            this.timingCallback.reset();
+          } else {
+            console.log("Event is not null. Running.");
+            this.colorElements(ev.elements);
+          }
+        }
 
         colorElements(els) {
-              var i;
-              var j;
-              for (i = 0; i < this.lastEls.length; i++) {
-                for (j = 0; j < this.lastEls[i].length; j++) {
-                  this.lastEls[i][j].classList.remove("color");
-                }
-              }
-              for (i = 0; i < els.length; i++) {
-                for (j = 0; j < els[i].length; j++) {
-                  els[i][j].classList.add("color");
-                }
-              }
-              this.lastEls = els;
+          var i;
+          var j;
+          for (i = 0; i < this.lastEls.length; i++) {
+            for (j = 0; j < this.lastEls[i].length; j++) {
+              this.lastEls[i][j].classList.remove("color");
             }
-
+          }
+          for (i = 0; i < els.length; i++) {
+            for (j = 0; j < els[i].length; j++) {
+              els[i][j].classList.add("color");
+            }
+          }
+          this.lastEls = els;
+        }
       }
 
       var isRendered = false;
       window.addEventListener("load", (event) => {
-        console.log(ABCJS);
         console.log("ページが完全に読み込まれました");
         render();
       });
       function render() {
         if (!isRendered) {
           console.log("レンダリング中");
-          // audioクラスのついているdivタグに、idを0から順に振っていく
-          var audioObj = document.getElementsByClassName("audio");
-          var scoreObj = document.getElementsByClassName("score");
+          let scoreObj = document.getElementsByClassName("score");
 
-          // 既にidが存在していたらbreakする
-          for (var i in audioObj) {
-            if (audioObj[i].id) {
+          // すでにscoreクラスにidがついていたらbreakする
+          for (let idx = 0; idx < scoreObj.length; idx++) {
+            if (scoreObj[idx].id) {
               return;
             }
           }
 
-          for (var i in audioObj) {
-            audioObj[i].id = "audio" + i;
-            scoreObj[i].id = "score" + i;
+          // scoreの下にdivを追加。クラス名はaudio
+          for (let idx = 0; idx < scoreObj.length; idx++) {
+            let div = document.createElement("div");
+            div.className = "audio";
+            div.id = "audio" + idx;
+            scoreObj[idx].parentElement.insertBefore(
+              div,
+              scoreObj[idx].nextSibling
+            );
+            scoreObj[idx].id = "score" + idx;
           }
 
-          for (var i in scoreObj) {
+          for (let idx = 0; idx < scoreObj.length; idx++) {
             // スコアのレンダリング
-            var visualObj = ABCJS.renderAbc(scoreObj[i], scoreObj[i].innerHTML);
+            let visualObj = ABCJS.renderAbc(
+              scoreObj[idx],
+              scoreObj[idx].innerHTML
+            );
 
             // スコアの再生
-            var synthControl = new ABCJS.synth.SynthController();
-            synthControl.load("#audio" + i, null, {
+            let synthControl = new ABCJS.synth.SynthController();
+            synthControl.load("#audio" + idx, null, {
               displayRestart: true,
               displayPlay: true,
               displayProgress: true,
@@ -164,41 +157,45 @@
             synthControl.setTune(visualObj[0], false);
 
             // アニメーション
-            timingCallbacksStateArray.push(new TimingCallbacksState(i, visualObj));
+            timingCallbacksStateArray.push(
+              new TimingCallbackState(idx, visualObj)
+            );
 
-            var startStop = function (index) {
-              console.log("startStop at index", index);
+            let startStop = function (index) {
+              if (timingCallbacksStateArray[index].stoppedByEnd) {
+                timingCallbacksStateArray[index].stoppedByEnd = false;
+                timingCallbacksStateArray[index].stoppedByPause = false;
+                timingCallbacksStateArray[index].timingCallback.reset();
+              }
+              if (timingCallbacksStateArray[index].stoppedByPause) {
+                timingCallbacksStateArray[index].stoppedByPause = false;
+              }
               timingCallbacksStateArray[index].isRunning =
                 !timingCallbacksStateArray[index].isRunning;
-
               if (timingCallbacksStateArray[index].isRunning) {
                 timingCallbacksStateArray[index].timingCallback.start();
-                console.log("call start");
               } else {
+                timingCallbacksStateArray[index].stoppedByPause = true;
                 timingCallbacksStateArray[index].timingCallback.pause();
-                console.log("call pause");
               }
             };
 
-            var reset = function (index) {
+            let reset = function (index) {
               timingCallbacksStateArray[index].timingCallback.reset();
               timingCallbacksStateArray[index].isRunning = false;
-              console.log("call reset");
             };
 
             document
               .querySelector(
-                "#audio" + i + " > div > button.abcjs-midi-start.abcjs-btn"
+                "#audio" + idx + " > div > button.abcjs-midi-start.abcjs-btn"
               )
-              .addEventListener("click", startStop.bind(null, i));
+              .addEventListener("click", startStop.bind(null, idx));
 
             document
               .querySelector(
-                "#audio" + i + " > div > button.abcjs-midi-reset.abcjs-btn"
+                "#audio" + idx + " > div > button.abcjs-midi-reset.abcjs-btn"
               )
-              .addEventListener("click", reset.bind(null, i));
-
-            
+              .addEventListener("click", reset.bind(null, idx));
           }
           isRendered = true;
         }
