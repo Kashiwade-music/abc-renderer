@@ -9,71 +9,166 @@
       rel="stylesheet"
     />
     <div class="score">
-        X: 1
-        M: 4/4
-        L: 1/8
-        K: Emin
-        |:D2|"Em"EBBA B2 EB|\
-            ~B2 AB dBAG|\
-            "D"FDAD BDAD|\
-            FDAD dAFD|
-        "Em"EBBA B2 EB|\
-            B2 AB defg|\
-            "D"afe^c dBAF|\
-            "Em"DEFD E2:|
-        |:gf|"Em"eB B2 efge|\
-            eB B2 gedB|\
-            "D"A2 FA DAFA|\
-            A2 FA defg|
-        "Em"eB B2 eBgB|\
-            eB B2 defg|\
-            "D"afe^c dBAF|\
-            "Em"DEFD E2:|
-    </div>
-    <div class="audio"></div>
+      X: 1
+      M: 4/4
+      L: 1/8
+      K: Emin
+      |:D2|"Em"EBBA B2 EB|\
+          ~B2 AB dBAG|\
+          "D"FDAD BDAD|\
+          FDAD dAFD|
+      "Em"EBBA B2 EB|\
+          B2 AB defg|\
+          "D"afe^c dBAF|\
+          "Em"DEFD E2:|
+      |:gf|"Em"eB B2 efge|\
+          eB B2 gedB|\
+          "D"A2 FA DAFA|\
+          A2 FA defg|
+      "Em"eB B2 eBgB|\
+          eB B2 defg|\
+          "D"afe^c dBAF|\
+          "Em"DEFD E2:|
+  </div>
+  <div class="audio"></div>
 
-    <div class="score">
-        M:4/4
-        L:1/4
-        K:C
-        cBAG | FEDC ||
-        </div>
-    <div class="audio"></div>
+  <div class="score">
+      M:4/4
+      L:1/4
+      K:C
+      cBAG | FEDC ||
+      </div>
+  <div class="audio"></div>
 
     <script>
-  var isRendered = false;
-  window.addEventListener("load", (event) => {
-    console.log(ABCJS);
-    console.log("ページが完全に読み込まれました");
-    render();
-  });
-  function render() {
-    if (!isRendered) {
-    console.log("レンダリング中");
-      // audioクラスのついているdivタグに、idを0から順に振っていく
-      var audioObj = document.getElementsByClassName("audio");
+      var isRendered = false;
+      window.addEventListener("load", (event) => {
+        console.log(ABCJS);
+        console.log("ページが完全に読み込まれました");
+        render();
+      });
+      function render() {
+        if (!isRendered) {
+          console.log("レンダリング中");
+          // audioクラスのついているdivタグに、idを0から順に振っていく
+          var audioObj = document.getElementsByClassName("audio");
+          var scoreObj = document.getElementsByClassName("score");
 
-      // 既にidが存在していたらbreakする
-      for (var i in audioObj) {
-        if (audioObj[i].id) {
-          break;
+          // 既にidが存在していたらbreakする
+          for (var i in audioObj) {
+            if (audioObj[i].id) {
+              return;
+            }
+          }
+
+          for (var i in audioObj) {
+            audioObj[i].id = "audio" + i;
+            scoreObj[i].id = "score" + i;
+          }
+
+          for (var i in scoreObj) {
+            // スコアのレンダリング
+            var visualObj = ABCJS.renderAbc(scoreObj[i], scoreObj[i].innerHTML);
+
+            // スコアの再生
+            var synthControl = new ABCJS.synth.SynthController();
+            synthControl.load("#audio" + i, null, {
+              displayRestart: true,
+              displayPlay: true,
+              displayProgress: true,
+            });
+            synthControl.setTune(visualObj[0], false);
+
+            // アニメーション
+            var timingCallbacks = new ABCJS.TimingCallbacks(visualObj[0], {
+              beatCallback: beatCallback,
+              eventCallback: eventCallback,
+            });
+
+            function createCursor() {
+              var svg = document.querySelector("#score" + i + " svg");
+              var cursor = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "line"
+              );
+              cursor.setAttribute("class", "abcjs-cursor");
+              cursor.setAttributeNS(null, "x1", 0);
+              cursor.setAttributeNS(null, "y1", 0);
+              cursor.setAttributeNS(null, "x2", 0);
+              cursor.setAttributeNS(null, "y2", 0);
+              svg.appendChild(cursor);
+              return cursor;
+            }
+            var cursor = createCursor();
+
+            var playPauseButton = document.querySelector(
+              "#audio" + i + " > div > button.abcjs-midi-start.abcjs-btn"
+            );
+            playPauseButton.addEventListener("click", function(){startStop()});
+            var isRunning = false;
+
+            var pauseButtonControl = function () {
+              isRunning = !isRunning;
+            };
+
+            var startStop = function () {
+              isRunning = !isRunning;
+              if (isRunning) timingCallbacks.start();
+              else timingCallbacks.stop();
+            };
+
+            var restart = function () {
+              timingCallbacks.start();
+            };
+
+            function beatCallback(
+              currentBeat,
+              totalBeats,
+              lastMoment,
+              position,
+              debugInfo
+            ) {
+              var x1, x2, y1, y2;
+              if (currentBeat === totalBeats) {
+                showAllMeasures();
+                x1 = 0;
+                x2 = 0;
+                y1 = 0;
+                y2 = 0;
+              } else {
+                x1 = position.left - 2;
+                x2 = position.left - 2;
+                y1 = position.top;
+                y2 = position.top + position.height;
+              }
+              if (showCursor.checked) {
+                cursor.setAttribute("x1", x1);
+                cursor.setAttribute("x2", x2);
+                cursor.setAttribute("y1", y1);
+                cursor.setAttribute("y2", y2);
+              }
+              if (colorNote.checked) colorElements([]);
+            }
+
+            var lastMeasure = -1;
+            function eventCallback(ev) {
+              if (!ev) {
+                pauseButtonControl();
+                return;
+              }
+              if (ev.measureStart && hideFinishedMeasures.checked) {
+                if (lastMeasure > ev.measureNumber) showAllMeasures();
+                else if (lastMeasure >= 0) hideMeasure(lastMeasure);
+                lastMeasure = ev.measureNumber;
+              }
+              if (colorNote.checked) {
+                colorElements(ev.elements);
+              }
+            }
+          }
+          isRendered = true;
         }
       }
-
-      for (var i in audioObj) {
-          audioObj[i].id = "audio"+i;
-      }
-      // スコアのレンダリング
-      var scoreObj = document.getElementsByClassName("score");
-      for (var i in scoreObj) {
-        var visualObj = ABCJS.renderAbc(scoreObj[i], scoreObj[i].innerHTML);
-        var synthControl = new ABCJS.synth.SynthController();
-	      synthControl.load("#audio"+i, null, {displayRestart: true, displayPlay: true, displayProgress: true});
-	      synthControl.setTune(visualObj[0], false);
-      }
-      isRendered = true;
-    }
-  }
     </script>
   </body>
 </html>
