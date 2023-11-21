@@ -39,8 +39,92 @@
       cBAG | FEDC ||
       </div>
   <div class="audio"></div>
-
+  <style>
+      .color {
+        stroke: red;
+        fill: red;
+      }
+    </style>
     <script>
+      var timingCallbacksStateArray = [];
+
+      class TimingCallbacksState {
+        constructor(id, visualObj) {
+          this.id = id;
+          this.visualObj = visualObj;
+          this.lastEls = [];
+          this.isRunning = false;
+          this.cursor = this.createCursor();
+          this.timingCallback = new ABCJS.TimingCallbacks(this.visualObj[0], {
+            beatCallback: this.beatCallback.bind(this),
+            eventCallback: this.eventCallback.bind(this),
+          });
+        }
+
+        createCursor() {
+          var svg = document.querySelector("#score" + this.id + " svg");
+          var cursor = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "line"
+          );
+          cursor.setAttribute("class", "abcjs-cursor");
+          cursor.setAttributeNS(null, "x1", 0);
+          cursor.setAttributeNS(null, "y1", 0);
+          cursor.setAttributeNS(null, "x2", 0);
+          cursor.setAttributeNS(null, "y2", 0);
+          svg.appendChild(cursor);
+          return cursor;
+        }
+
+        beatCallback(
+          currentBeat,
+          totalBeats,
+          lastMoment,
+          position,
+          debugInfo
+        ) {
+          var x1, x2, y1, y2;
+          if (currentBeat === totalBeats) {
+            x1 = 0;
+            x2 = 0;
+            y1 = 0;
+            y2 = 0;
+          } else {
+            x1 = position.left - 2;
+            x2 = position.left - 2;
+            y1 = position.top;
+            y2 = position.top + position.height;
+          }
+
+          console.log(this);
+          this.cursor.setAttribute("x1", x1);
+          this.cursor.setAttribute("x2", x2);
+          this.cursor.setAttribute("y1", y1);
+          this.cursor.setAttribute("y2", y2);
+        }
+
+        eventCallback(ev) {
+          this.colorElements(ev.elements);
+        }1
+
+        colorElements(els) {
+              var i;
+              var j;
+              for (i = 0; i < this.lastEls.length; i++) {
+                for (j = 0; j < this.lastEls[i].length; j++) {
+                  this.lastEls[i][j].classList.remove("color");
+                }
+              }
+              for (i = 0; i < els.length; i++) {
+                for (j = 0; j < els[i].length; j++) {
+                  els[i][j].classList.add("color");
+                }
+              }
+              this.lastEls = els;
+            }
+
+      }
+
       var isRendered = false;
       window.addEventListener("load", (event) => {
         console.log(ABCJS);
@@ -80,91 +164,41 @@
             synthControl.setTune(visualObj[0], false);
 
             // アニメーション
-            var timingCallbacks = new ABCJS.TimingCallbacks(visualObj[0], {
-              beatCallback: beatCallback,
-              eventCallback: eventCallback,
-            });
+            timingCallbacksStateArray.push(new TimingCallbacksState(i, visualObj));
 
-            function createCursor() {
-              var svg = document.querySelector("#score" + i + " svg");
-              var cursor = document.createElementNS(
-                "http://www.w3.org/2000/svg",
-                "line"
-              );
-              cursor.setAttribute("class", "abcjs-cursor");
-              cursor.setAttributeNS(null, "x1", 0);
-              cursor.setAttributeNS(null, "y1", 0);
-              cursor.setAttributeNS(null, "x2", 0);
-              cursor.setAttributeNS(null, "y2", 0);
-              svg.appendChild(cursor);
-              return cursor;
-            }
-            var cursor = createCursor();
+            var startStop = function (index) {
+              console.log("startStop at index", index);
+              timingCallbacksStateArray[index].isRunning =
+                !timingCallbacksStateArray[index].isRunning;
 
-            var playPauseButton = document.querySelector(
-              "#audio" + i + " > div > button.abcjs-midi-start.abcjs-btn"
-            );
-            playPauseButton.addEventListener("click", function(){startStop()});
-            var isRunning = false;
-
-            var pauseButtonControl = function () {
-              isRunning = !isRunning;
-            };
-
-            var startStop = function () {
-              isRunning = !isRunning;
-              if (isRunning) timingCallbacks.start();
-              else timingCallbacks.stop();
-            };
-
-            var restart = function () {
-              timingCallbacks.start();
-            };
-
-            function beatCallback(
-              currentBeat,
-              totalBeats,
-              lastMoment,
-              position,
-              debugInfo
-            ) {
-              var x1, x2, y1, y2;
-              if (currentBeat === totalBeats) {
-                showAllMeasures();
-                x1 = 0;
-                x2 = 0;
-                y1 = 0;
-                y2 = 0;
+              if (timingCallbacksStateArray[index].isRunning) {
+                timingCallbacksStateArray[index].timingCallback.start();
+                console.log("call start");
               } else {
-                x1 = position.left - 2;
-                x2 = position.left - 2;
-                y1 = position.top;
-                y2 = position.top + position.height;
+                timingCallbacksStateArray[index].timingCallback.pause();
+                console.log("call pause");
               }
-              if (showCursor.checked) {
-                cursor.setAttribute("x1", x1);
-                cursor.setAttribute("x2", x2);
-                cursor.setAttribute("y1", y1);
-                cursor.setAttribute("y2", y2);
-              }
-              if (colorNote.checked) colorElements([]);
-            }
+            };
 
-            var lastMeasure = -1;
-            function eventCallback(ev) {
-              if (!ev) {
-                pauseButtonControl();
-                return;
-              }
-              if (ev.measureStart && hideFinishedMeasures.checked) {
-                if (lastMeasure > ev.measureNumber) showAllMeasures();
-                else if (lastMeasure >= 0) hideMeasure(lastMeasure);
-                lastMeasure = ev.measureNumber;
-              }
-              if (colorNote.checked) {
-                colorElements(ev.elements);
-              }
-            }
+            var reset = function (index) {
+              timingCallbacksStateArray[index].timingCallback.reset();
+              timingCallbacksStateArray[index].isRunning = false;
+              console.log("call reset");
+            };
+
+            document
+              .querySelector(
+                "#audio" + i + " > div > button.abcjs-midi-start.abcjs-btn"
+              )
+              .addEventListener("click", startStop.bind(null, i));
+
+            document
+              .querySelector(
+                "#audio" + i + " > div > button.abcjs-midi-reset.abcjs-btn"
+              )
+              .addEventListener("click", reset.bind(null, i));
+
+            
           }
           isRendered = true;
         }
